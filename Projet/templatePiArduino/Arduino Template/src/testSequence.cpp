@@ -29,6 +29,16 @@ VexQuadEncoder vexEncoder_;         // objet encodeur vex
 IMU9DOF imu_;                       // objet imu
 PID pid_;                           // objet PID
 
+const int ATTENTE = 0;              // liste des états possibles du robot
+const int CHARGEMENT = 1;
+const int BALANCEMENT = 2;
+const int TRANSITION = 3;
+const int TRAVERSE = 4;
+const int YEET = 5;
+const int RETOUR = 6;
+
+int etat = ATTENTE;                 // état actuel du robot
+
 volatile bool shouldSend_ = false;  // drapeau prêt à envoyer un message
 volatile bool shouldRead_ = false;  // drapeau prêt à lire un message
 
@@ -98,6 +108,32 @@ void loop() {
   
   // mise à jour du PID
   pid_.run();
+
+  switch (etat) {
+    case ATTENTE: 
+        break;
+
+    case CHARGEMENT:
+        break;
+
+    case BALANCEMENT:
+        break;
+
+    case TRANSITION:
+        break;
+
+    case TRAVERSE:
+        break;
+
+    case YEET:
+        break;
+
+    case RETOUR:
+        break;
+
+    default:
+        etat = ATTENTE;
+  }
 }
 
 /*---------------------------Definition de fonctions ------------------------*/
