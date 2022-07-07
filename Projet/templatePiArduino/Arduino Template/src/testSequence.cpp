@@ -19,7 +19,7 @@
 #define POTPIN          A5          // Port analogique pour le potentiometre
 
 #define PASPARTOUR      64          // Nombre de pas par tour du moteur
-#define RAPPORTVITESSE  50          // Rapport de vitesse du moteur
+#define RAPPORTVITESSE  37.5          // Rapport de vitesse du moteur
 
 /*---------------------------- variables globales ---------------------------*/
 
@@ -37,7 +37,14 @@ const int TRAVERSE = 4;
 const int YEET = 5;
 const int RETOUR = 6;
 
+const float deplaBalan = 0.1;
+
 int etat = ATTENTE;                 // état actuel du robot
+
+int rayonRoues = 0.05;              // rayon des roues en m
+float distancePulse = (2 * 3.14159 * rayonRoues) / (PASPARTOUR * RAPPORTVITESSE);
+float degAnalog = (250.0 / 1023.0);
+//float w = 0;                       // fréquence de balancement du pendule à calculer!
 
 volatile bool shouldSend_ = false;  // drapeau prêt à envoyer un message
 volatile bool shouldRead_ = false;  // drapeau prêt à lire un message
@@ -61,13 +68,14 @@ float Mxyz[3];                      // tableau pour magnetometre
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 void timerCallback();
+void avancer(float pos_desiree);
+void reculer(float pos_desiree);
 void forward();
 void stop();
 void reverse();
 void sendMsg(); 
 void readMsg();
 void serialEvent();
-void runsequence();
 
 /*---------------------------- fonctions "Main" -----------------------------*/
 
@@ -100,7 +108,6 @@ void loop() {
   if(shouldSend_){
     sendMsg();
   }
-  
 
   // mise a jour des chronometres
   timerSendMsg_.update();
@@ -111,15 +118,28 @@ void loop() {
 
   switch (etat) {
     case ATTENTE: 
+        // coder l'attente des messages de départ
         break;
 
     case CHARGEMENT:
+        pinMode(MAGPIN, HIGH); // Activation electroAimant
+        etat = BALANCEMENT;
         break;
 
-    case BALANCEMENT:
+    case BALANCEMENT:   // à ajuster avec la simulation et les tests réels
+        if ((analogRead(POTPIN) * degAnalog) < 165)
+        {
+            avancer(deplaBalan);
+            reculer(deplaBalan);
+            avancer(deplaBalan);
+        }
+        else
+            etat = TRANSITION;
         break;
 
     case TRANSITION:
+        reculer(deplaBalan);
+        etat = TRAVERSE;
         break;
 
     case TRAVERSE:
@@ -142,24 +162,38 @@ void serialEvent(){shouldRead_ = true;}
 
 void timerCallback(){shouldSend_ = true;}
 
-void forward(){
+void avancer(float pos_desiree)
+{
+    double err = pos_desiree - (readResetEncoder(0) * distancePulse);
+    PWM_des_ = pid_.computeCommand(err);
+    forward();
+}
+
+void reculer(float pos_desiree)
+{
+    double err = pos_desiree - (readResetEncoder(0) * distancePulse);
+    PWM_des_ = pid_.computeCommand(err);
+    reverse();
+}
+
+void forward(){ // à modifier pour le bon moteur
   /* Faire rouler le robot vers l'avant à une vitesse désirée */
   AX_.setMotorPWM(0, PWM_des_);
-  AX_.setMotorPWM(1, PWM_des_);
+  //AX_.setMotorPWM(1, PWM_des_);
   Direction_ = 1;
 }
 
 void stop(){
   /* Stopper le robot */
   AX_.setMotorPWM(0,0);
-  AX_.setMotorPWM(1,0);
+  //AX_.setMotorPWM(1,0);
   Direction_ = 0;
 }
 
 void reverse(){
   /* Faire rouler le robot vers l'arrière à une vitesse désirée */
   AX_.setMotorPWM(0, -PWM_des_);
-  AX_.setMotorPWM(1, -PWM_des_);
+  //AX_.setMotorPWM(1, -PWM_des_);
   Direction_ = -1;
 }
 void sendMsg(){
@@ -226,20 +260,4 @@ void readMsg(){
     pid_.setGoal(doc["setGoal"][4]);
     pid_.enable();
   }
-}
-
-void runSequence(){
-/*Exemple de fonction pour faire bouger le robot en avant et en arrière.*/
-
-  if(RunForward_){
-    forward();
-  }
-
-  if(stop_){
-    forward();
-  }
-  if(RunReverse_){
-    reverse();
-  }
-
 }
